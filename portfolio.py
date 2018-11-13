@@ -13,3 +13,5 @@ class Portfolio():
         self.trades.append([str(object), amount, price])
 
     def expireOptions(self):
+        expiredOptions = [v for v in self.options.values() if v.isExpired()]
+        self.options = {k: v for k, v in self.options.iteritems() if not v.isExpired()}
