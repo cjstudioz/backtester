@@ -23,10 +23,16 @@ def price(S, K, T, r, sigma, putcall):
     return putcall * res
 
 @lru_cache()
-def delta(S, K, T, r, sigma, putcall):
+def _delta(S, K, T, r, sigma):
     d1 = _d1(S, K, T, r, sigma)
-    delta_call = putcall * si.norm.cdf(putcall * d1, 0.0, 1.0)
+    delta_call = si.norm.cdf(d1, 0.0, 1.0)
     return delta_call
+
+def delta(S, K, T, r, sigma, putcall):
+    deltaRaw = _delta(S, K, T, r, sigma)
+    if putcall == OPTION_TYPE_PUT:
+        deltaRaw -= 1
+    return deltaRaw
 
 @lru_cache()
 def _prob_density(S, K, T, r, sigma):
