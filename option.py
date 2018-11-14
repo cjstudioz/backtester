@@ -60,12 +60,15 @@ def theta(S, K, T, r, sigma, putcall):
     res = (-sigma * S * prob_density) / (2 * np.sqrt(T)) - putcall * r * K * np.exp(-r * T) * si.norm.cdf(putcall * d2, 0.0, 1.0)
     return res
 
+
 class Option():
-    def __init__(self, underlying, spot, strike, maturity, rate, impliedVol, optionType, context):
+    def __init__(self, underlying, strike, maturity, optionType, amount, context):
         if optionType not in (OPTION_TYPE_CALL, OPTION_TYPE_PUT):
             raise RuntimeError('invalid option type: %s. use either 0 for call or 1 for put' % optionType)
-        self.underlying, self.spot, self.strike, self.maturity, self.rate, self.impliedVol, self.optionType, self.context = \
-            underlying, spot, strike, maturity, rate, impliedVol, optionType, context
+        self.underlying, self.strike, self.maturity, self.optionType, self.amount, self.context = \
+            underlying, strike, maturity, optionType, amount, context
+
+        self.putcallsign = self.optionType #simplifies code but hacky I know not sure how I feel about it
 
     def __str__(self):
         return 'Option%s' % vars(self)
@@ -75,13 +78,27 @@ class Option():
             raise RuntimeError('Option is expired! marutity:{}, context.date:{}'.format(self.maturity, self.context.date))
 
         timeToMaturityRaw = self.maturity - self.context.date
-        return [self.spot, self.strike, timeToMaturityRaw.days/DAYS_IN_YEAR, self.rate, self.impliedVol, self.optionType]
+        return [
+            self.context.spot(self.underlier),
+            self.strike,
+            timeToMaturityRaw.days/DAYS_IN_YEAR,
+            self.context.rate,
+            self.context.spot(self.underlier),
+            self.putcallsign
+        ]
 
     def price(self):
-        return price(*self._getPricingArgs())
+        return self.amount * price(*self._getPricingArgs())
 
     def delta(self):
-        deltaRaw = delta(*self._getPricingArgs())
+        return self.amount * delta(*self._getPricingArgs())
+
+    def settle(self):
+        if context.date < self.maturity: #TODO: should this be stricter? would need to record spot on maturity
+            raise RuntimeError('Can only settle after maturity context.date:%s, maturity: %s' % (context.date, self.maturity))
+
+        moniness = self.amount * self.putcallsign * (context.spot(self.underlying) - self.strike)
+        res = max(0, moniness) if self.amount > 0 else min(0, moniness)
 
 
     def isExpired(self):
@@ -93,7 +110,18 @@ if __name__ == '__main__':
     context = type('test', (object,), {})() #TODO: replace with real context
     context.date = date.today()
 
-    call = Option('SPY', 100, 1, date.today() + timedelta(days=5), 0.01, 0.1, OPTION_TYPE_CALL, context)
-    put = Option('SPY', 1, 101, date.today() + timedelta(days=1), 0.01, 0.1, OPTION_TYPE_PUT, context)
+    call = Option('SPY', 100, 1, date.today() + timedelta(days=5), 0.01, 0.1, OPTION_TYPE_CALL, 2, context)
+    put = Option('SPY', 1, 101, date.today() + timedelta(days=1), 0.01, 0.1, OPTION_TYPE_PUT, 3.5, context)
     print(call, call.price(), call.delta())
     print(put, put.price(), put.delta())
+
+    options = [
+        Option('SPY', 100, 90, date.today(), 0.01, 0.1, OPTION_TYPE_CALL, 1, context),
+        Option('SPY', 100, 110, date.today(), 0.01, 0.1, OPTION_TYPE_CALL, 2, context),
+        Option('SPY', 100, 100, date.today(), 0.01, 0.1, OPTION_TYPE_CALL, 3.6, context),
+        Option('SPY', 100, 90, date.today(), 0.01, 0.1, OPTION_TYPE_PUT, 1, context),
+        Option('SPY', 100, 110, date.today(), 0.01, 0.1, OPTION_TYPE_PUT, 2.5, context),
+        Option('SPY', 100, 100, date.today(), 0.01, 0.1, OPTION_TYPE_PUT, 50, context),
+    ]
+    for op in options:
+        print(op, op.settle())
