@@ -61,7 +61,7 @@ def theta(S, K, T, r, sigma, putcall):
     return res
 
 
-class Option():
+class Option:
     def __init__(self, underlying, strike, maturity, optionType, amount, context):
         if optionType not in (OPTION_TYPE_CALL, OPTION_TYPE_PUT):
             raise RuntimeError('invalid option type: %s. use either 0 for call or 1 for put' % optionType)

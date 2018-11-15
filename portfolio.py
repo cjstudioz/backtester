@@ -1,7 +1,7 @@
 import pandas as pd
 
 
-class Portfolio():
+class Portfolio:
     def __init(self, context):
         self.context = context
         self.options = {}
