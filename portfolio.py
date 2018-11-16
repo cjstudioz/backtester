@@ -1,6 +1,5 @@
 import pandas as pd
 
-
 class Portfolio():
     def __init(self, context):
         self.context = context
@@ -8,9 +7,24 @@ class Portfolio():
         self.stock = {}
         self.trades = pd
 
-    def tradeOption(self, object, amount, price):
-        self.options.setdefault(object.toTuple(), object).amount += amount
-        self.trades.append([str(object), amount, price])
+    def tradeOption(self, option: tuple, underlying: str, price: double, amount: double):
+        self.options.setdefault(
+            underlying, {}
+        ).setdefault(option, 0) += amount
+
+        self.options.QUERY
+
+        #self.trades.append(*(option + (underlying, price, amount)))
+
+    def delta(underlying):
+        ctx = self.context
+        sum(delta(
+            ctx.spot(underlying),
+            option.strike,
+            (option.maturity - ctx.date).days / ctx.DAYS_IN_YEAR,
+            ctx.rate,
+            ctx.vol(underlying)
+        ) for option in self.options[underlying].values())
 
     def settleOptions(self):
         settlement = 0
