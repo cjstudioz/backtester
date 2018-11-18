@@ -1,3 +1,7 @@
+import logging
+logging.basicConfig()
+logging.getLogger().setLevel(logging.DEBUG)
+
 from context import Context
 from datetime import date, timedelta
 import pandas as pd
@@ -28,6 +32,8 @@ def getMktData():
     return dfInterpolatedVols
 
 if __name__ == '__main__':
+
+
     mktdata = getMktData()
     context = Context(mktdata, balance=100000)
 
@@ -39,6 +45,6 @@ if __name__ == '__main__':
     portfolio.executeTrade('.SPY', 1450, context.date + timedelta(days=3), OPTION_TYPE_PUT, 100)
 
     print(context.balance)
-    print(portfolio.delta('.SPY'))
+    print(portfolio.delta())
     #print(portfolio.price)
 

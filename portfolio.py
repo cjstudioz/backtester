@@ -1,16 +1,19 @@
+import logging
 import pandas as pd
 from option_pricer import delta, optionPrice
 from datetime import date
+from context import Context
 
 INDEX = ['Stock', 'Strike', 'Maturity', 'PutCall']
 POSITION_COLS = ['Amount']
+PRICING_COLS = ['Spot', 'Strike', 'TimeToMaturity', 'Rate', 'Volatility', 'PutCall', 'Amount']
 #TRANSACTION_COLS = INDEX
 
 class OptionsPortfolio():
-    def __init__(self, context):
+    def __init__(self, context:Context):
         self.context = context
         self.dfPositions = pd.DataFrame(columns=INDEX+POSITION_COLS).set_index(INDEX)
-
+        self.logger = logging.getLogger(__name__)
 
     def executeTrade(self,
             underlying: str,
@@ -28,19 +31,23 @@ class OptionsPortfolio():
             else amount
 
         ctx = self.context
-        price = price or optionPrice(*self._getPricingParams(underlying, dict(
-            Strike=strike,
-            TimeToMaturity=(maturity - ctx.date).days / ctx.daysInYear,
-            PutCall=putcall,
-            Volatility=self.context.vol(underlying, maturity),
-        )))
+        price = price or optionPrice(
+            ctx.spot(underlying),
+            strike,
+            (maturity - ctx.date).days / ctx.daysInYear,
+            ctx.rate,
+            ctx.vol(underlying, maturity),
+            putcall
+        )
+        self.logger.debug('price: %s' % price)
         ctx.balance -= price * amount
 
         # self.dfTransactions.append([
         #     [self.context.date, underlying, strike, maturity, price, amount]
         # ])
 
-    def dfPositionVols(self):
+    def dfPositionsAugmented(self):
+        # TODO: memoize this
         ctx = self.context
         joinkey = ['Stock', 'Maturity']
         mktdata = ctx.mktdata.set_index(joinkey)
@@ -48,28 +55,27 @@ class OptionsPortfolio():
             mktdata[mktdata['Date'] == pd.Timestamp(self.context.date)], on=joinkey
         ).reset_index()
         joined['TimeToMaturity'] = (joined['Maturity'] - ctx.date).dt.days / ctx.daysInYear
+        joined['Rate'] = ctx.rate
 
+        self.logger.debug(f'pricing params: {joined}')
         if joined.isnull().values.any():
             raise RuntimeError('found unexpected nulls \n%s' % joined.isnull())
 
         return joined
 
-    def _getPricingParams(self, underlying:str, optionParams=None):
-        optionParams = optionParams or self.dfPositionVols()
-        ctx = self.context
-        params = [
-            ctx.spot(underlying),
-            optionParams['Strike'],
-            optionParams['TimeToMaturity'],
-            ctx.rate,
-            optionParams['Volatility'],
-            optionParams['PutCall']
-        ]
-        return params
+    def _pricingParams(self):
+        augm = self.dfPositionsAugmented()
+        res = augm[PRICING_COLS].values.transpose()
+        return res
 
-    def delta(self, underlying:str):
-        deltaRaw = delta(*self._getPricingParams(underlying))
-        return deltaRaw.sum()
+    def positionsDelta(self):
+        paramsDf = self.dfPositionsAugmented()
+        paramsDf['Delta'] = delta(*self._pricingParams())
+        self.logger.info('deltas: %s' % paramsDf)
+        return paramsDf
+
+    def delta(self):
+        return self.positionsDelta().groupby('Stock')['Delta'].sum()
 
     def settleOptions(self):
         settlement = 0
