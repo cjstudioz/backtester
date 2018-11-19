@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 import pandas as pd
 from backtester.core.option_pricer import delta, OPTION_TYPE_CALL
 from datetime import date
@@ -12,7 +13,11 @@ PRICING_COLS = ['Spot', 'Strike', 'TimeToMaturity', 'Rate', 'Volatility', 'PutCa
 class OptionsPortfolio:
     def __init__(self, context:Context):
         self.context = context
-        self.dfPositions = pd.DataFrame(columns=INDEX+POSITION_COLS).set_index(INDEX)
+        self.dfPositions = pd.DataFrame(
+            columns=INDEX+POSITION_COLS,
+        ).set_index(INDEX)
+        self.dfPositions['Amount'] = self.dfPositions['Amount'].astype(np.float64) #HACK this is so ugly. no way to create empty dataframe with types!!!
+
         self.logger = logging.getLogger(__name__)
 
 
@@ -74,7 +79,7 @@ class OptionsPortfolio:
         res = augm[PRICING_COLS].values.transpose()
         return res
 
-    def positionsDelta(self):
+    def positionsDelta(self): #TODO: calculate all greeks
         paramsDf = self.dfPositionsAugmented()
         paramsDf['Delta'] = delta(*self._pricingParams())
         self.logger.info('deltas: %s' % paramsDf)
@@ -84,11 +89,20 @@ class OptionsPortfolio:
         return self.positionsDelta().groupby('Stock')['Delta'].sum()
 
     def settleOptions(self):
-        settlement = 0
-        expiredOptions = [v for v in self.options.values() if v.isExpired()]
+        ctx = self.context
+        maturityStr = ctx.date.strftime('%Y-%m-%d')
+        dfExpired = self.dfPositions.query(f"Maturity == '{maturityStr}'")
+        if not dfExpired.empty:
+            mktdata = ctx.mktdata[['Stock', 'Date', 'Spot']].drop_duplicates()
+            joined = pd.merge(dfExpired.reset_index(), mktdata, left_on=['Stock', 'Maturity'], right_on=['Stock', 'Date'])
 
-        if expiredOptions:
-            settlement = sum(option.moniness for option in expiredOptions)
-            self.options = {k: v for k, v in self.options.iteritems() if not v.isExpired()}
+            joined['Moniness'] = joined.eval("Amount * PutCall * (Spot - Strike)")
+            joined['Settlement'] = np.where(joined['Amount'] > 0, np.maximum(0, joined['Moniness']), np.minimum(0, joined['Moniness']))
+            self.logger.info(f'{ctx.date}: expiring options\n{joined}')
+            ctx.balance -= joined['Settlement'].sum()
 
-        return settlement
+            #delete expired options
+            self.dfPositions = self.dfPositions.query(f"Maturity > '{maturityStr}'")
+
+    def handleEvent(self):
+        self.settleOptions()

@@ -11,8 +11,10 @@ class Strategy:
     def run(self):
         while self.context.nextEvent():
             self.handleEvent()
+            self.optionsPortfolio.handleEvent()
+            self.logger.debug(f'balance: {self.context.balance}')
 
-    def parseEvent(self):
+    def handleEvent(self):
         raise NotImplementedError()
 
 

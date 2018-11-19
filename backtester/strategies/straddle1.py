@@ -28,7 +28,7 @@ class StrategyStraddle1(Strategy):
         """
         ctx = self.context
         if ctx.date.weekday() == 4 and np.datetime64(ctx.date) in ctx.tradingdays: #TODO: could be sped up by just iterating through tradingdays but don't want to prematurely optimize
-            tradeNotional = -(self.context.balance * self.fractionPerTrade)/len(self.stocks)
+            tradeNotional = -(self.context.balance * self.fractionPerTrade)/(2*len(self.stocks))
             for stock in self.stocks:
                 if ctx.balance >= tradeNotional:
                     for putcall in (OPTION_TYPE_CALL, OPTION_TYPE_PUT):

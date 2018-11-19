@@ -36,7 +36,7 @@ if __name__ == '__main__':
 
 
     mktdata = getMktData()
-    context = Context(mktdata, balance=100000)
+    context = Context(mktdata, balance=10000)
 
     strategy = StrategyStraddle1(context)
     strategy.run()
