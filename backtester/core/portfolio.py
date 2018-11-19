@@ -1,6 +1,6 @@
 import logging
 import pandas as pd
-from backtester.core.option_pricer import delta
+from backtester.core.option_pricer import delta, OPTION_TYPE_CALL
 from datetime import date
 from backtester.core.context import Context
 
@@ -30,7 +30,7 @@ class OptionsPortfolio:
             stock: str,
             strike: float,
             maturity: date,
-            putcall: int, #option_pricer.OPTION_TYPE_CALL  OPTION_TYPE_PUT
+            putcall: int, #OPTION_TYPE_CALL  OPTION_TYPE_PUT
             price: float=None,
     ):
 
@@ -43,7 +43,8 @@ class OptionsPortfolio:
         ctx = self.context
         price = price or ctx.optionPrice(stock, strike, maturity, putcall)
 
-        self.logger.info(f'trading option: {amount} of {stock} @ {price}')
+        putcallstr = 'call' if putcall == OPTION_TYPE_CALL else 'put'
+        self.logger.info(f'{ctx.date}: trading option: {amount} of {maturity} {strike} {putcallstr} on {stock} for  @ {price}')
 
         ctx.balance -= price * amount
 

@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from datetime import date, timedelta
 from backtester.core.option_pricer import optionPrice
-
+import logging
 
 class Context:
     def __init__(self,
@@ -14,6 +14,8 @@ class Context:
                  ):
         self.mktdata, self.balance, self.daysInYear, self.rate = mktdata, balance, daysInYear, rate
         self.date = startdate or np.min(mktdata['Date'])
+        self.tradingdays = mktdata['Date'].unique() #HACK should really use a holiday calendar
+        self.logger = logging.getLogger(__name__)
 
     def spot(self, stock: str): #TODO: ideally should be able to call price on any asset class
         """
@@ -24,6 +26,10 @@ class Context:
             (md['Date'] == pd.Timestamp(self.date)) &
             (md['Stock'] == stock)
         ].reset_index()
+
+        if res.empty:
+            self.logger.error('empty')
+
         return res.at[0, 'Spot']
 
 

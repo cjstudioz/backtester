@@ -9,6 +9,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 from backtester.core.portfolio import OptionsPortfolio
 from backtester.core.option_pricer import OPTION_TYPE_CALL, OPTION_TYPE_PUT
+from backtester.strategies.straddle1 import StrategyStraddle1
 
 def _groupbyInterpFunc(data):
     return interp1d(data['DaysToMaturity'], data['Volatility'], bounds_error=False, fill_value='extrapolate', kind='cubic')
@@ -37,14 +38,8 @@ if __name__ == '__main__':
     mktdata = getMktData()
     context = Context(mktdata, balance=100000)
 
-    portfolio = OptionsPortfolio(context)
-    portfolio.executeTrade( 200, '.SPY', 1500, context.date + timedelta(days=25), OPTION_TYPE_CALL)
-    portfolio.executeTrade( 200, '.SPY', 1500, context.date + timedelta(days=25), OPTION_TYPE_PUT)
+    strategy = StrategyStraddle1(context)
+    strategy.run()
 
-    portfolio.executeTradeByCash(900, '.SPY', 1450, context.date + timedelta(days=20), OPTION_TYPE_CALL)
-    portfolio.executeTradeByCash(1200, '.SPY', 1450, context.date + timedelta(days=3), OPTION_TYPE_PUT)
-
-    print(context.balance)
-    print(portfolio.delta())
     #print(portfolio.price)
 
