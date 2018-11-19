@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
-from datetime import date
+from datetime import date, timedelta
+from option_pricer import optionPrice
+
 
 class Context:
     def __init__(self,
@@ -37,3 +39,27 @@ class Context:
             (md['Maturity'] == pd.Timestamp(maturity))
         ].reset_index()
         return res.at[0, 'Volatility']
+
+
+    def optionPrice(self, stock: str, strike: float, maturity: date, putcall: int):
+        res = optionPrice(
+            self.spot(stock),
+            strike,
+            (maturity - self.date).days / self.daysInYear,
+            self.rate,
+            self.vol(stock, maturity),
+            putcall
+        )
+        return res
+
+    def nextEvent(self):
+        """
+        HACK for now but could be extended in future to accept events from a pipeline
+        :return: False when no moer events
+        """
+
+        self.date += timedelta(days=1)
+        if self.date > self.mktdata['Date'].max():
+            return False
+
+        return True

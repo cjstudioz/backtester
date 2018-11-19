@@ -9,41 +9,46 @@ POSITION_COLS = ['Amount']
 PRICING_COLS = ['Spot', 'Strike', 'TimeToMaturity', 'Rate', 'Volatility', 'PutCall', 'Amount']
 #TRANSACTION_COLS = INDEX
 
-class OptionsPortfolio():
+class OptionsPortfolio:
     def __init__(self, context:Context):
         self.context = context
         self.dfPositions = pd.DataFrame(columns=INDEX+POSITION_COLS).set_index(INDEX)
         self.logger = logging.getLogger(__name__)
 
+
+    def executeTradeByCash(self, stock: str, cashAmount: float, *args, **kwargs):
+        """
+        Convenience Wrapper function over executeTrade() to
+        """
+        price = self.context.optionPrice(stock, strike, maturity, putcall)
+        amount = cashAmount/price
+        self.executeTrade(stock, amount, *args, price=price)
+
+
     def executeTrade(self,
-            underlying: str,
+            stock: str,
+            amount: float,
             strike: float,
             maturity: date,
             putcall: int, #option_pricer.OPTION_TYPE_CALL  OPTION_TYPE_PUT
-            amount: float,
             price: float=None,
     ):
 
-        index = (underlying, strike, maturity, putcall)
+        index = (stock, strike, maturity, putcall)
         self.dfPositions.loc[index, 'Amount'] = \
             self.dfPositions.loc[index, 'Amount'] + amount \
         if index in self.dfPositions \
             else amount
 
         ctx = self.context
-        price = price or optionPrice(
-            ctx.spot(underlying),
-            strike,
-            (maturity - ctx.date).days / ctx.daysInYear,
-            ctx.rate,
-            ctx.vol(underlying, maturity),
-            putcall
-        )
-        self.logger.debug('price: %s' % price)
+        price = price or ctx.optionPrice(stock, strike, maturity, putcall)
+
+        self.logger.info(f'trading option: {amount} of {stock} @ {price}')
+
         ctx.balance -= price * amount
 
         # self.dfTransactions.append([
-        #     [self.context.date, underlying, strike, maturity, price, amount]
+        #     [self.context.date, stock, strike, maturity, price, amount]
         # ])
 
     def dfPositionsAugmented(self):
