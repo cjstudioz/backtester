@@ -1,8 +1,8 @@
 import logging
 import pandas as pd
-from option_pricer import delta, optionPrice
+from backtester.core.option_pricer import delta
 from datetime import date
-from context import Context
+from backtester.core.context import Context
 
 INDEX = ['Stock', 'Strike', 'Maturity', 'PutCall']
 POSITION_COLS = ['Amount']
@@ -16,18 +16,18 @@ class OptionsPortfolio:
         self.logger = logging.getLogger(__name__)
 
 
-    def executeTradeByCash(self, stock: str, cashAmount: float, *args, **kwargs):
+    def executeTradeByCash(self, cashAmount: float, *args, **kwargs):
         """
         Convenience Wrapper function over executeTrade() to
         """
-        price = self.context.optionPrice(stock, strike, maturity, putcall)
+        price = self.context.optionPrice(*args[:4])
         amount = cashAmount/price
-        self.executeTrade(stock, amount, *args, price=price)
+        self.executeTrade(amount, *args, price=price)
 
 
     def executeTrade(self,
-            stock: str,
             amount: float,
+            stock: str,
             strike: float,
             maturity: date,
             putcall: int, #option_pricer.OPTION_TYPE_CALL  OPTION_TYPE_PUT

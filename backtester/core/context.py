@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from datetime import date, timedelta
-from option_pricer import optionPrice
+from backtester.core.option_pricer import optionPrice
 
 
 class Context:

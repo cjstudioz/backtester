@@ -1,5 +1,5 @@
-from portfolio import OptionsPortfolio
-from context import Context
+from backtester.core.portfolio import OptionsPortfolio
+from backtester.core.context import Context
 
 class Strategy:
     def __init__(self, context: Context):
