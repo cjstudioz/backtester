@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from datetime import date, timedelta
-from backtester.core.option_pricer import optionPrice
+from backtester.core import option_pricer
 import logging
 
 class Context:
@@ -17,38 +17,48 @@ class Context:
         self.tradingdays = mktdata['Date'].unique() #HACK should really use a holiday calendar
         self.logger = logging.getLogger(__name__)
 
-    def spot(self, stock: str): #TODO: ideally should be able to call price on any asset class
+    def spots(self):
         """
-
+        Today's Spot for all stock
         """
-        md = self.mktdata
+        md = self.mktdata.reset_index()
         res = md[
-            (md['Date'] == pd.Timestamp(self.date)) &
-            (md['Stock'] == stock)
-        ].reset_index()
+            md['Date'] == pd.Timestamp(self.date)
+        ][['Stock', 'Spot']].drop_duplicates('Stock')
+        return res
 
-        if res.empty:
-            self.logger.error('empty')
+    def spot(self, stock: str):
+        """
+        Today's Spot for a given Stock
+        """
+        md = self.spots()
+        res = md[md['Stock'] == stock]
+        if len(res) != 1:
+            raise RuntimeError(f'{self.date}: filtered DF should only have 1 row found {len(res)}\n{res}')
 
-        return res.at[0, 'Spot']
+        return res.reset_index().at[0, 'Spot'] #TODO: how to select first element without reset_index?
 
 
-    def vol(self, stock: str, maturity: date): #TODO: ideally should be able to call price on any asset class
+    def vol(self, stock: str, maturity: date):
         """
 
-        TODO: interpolate??
+        Today's Vol for a given Stock, Maturity (flat across strike)
         """
         md = self.mktdata
         res = md[
             (md['Date'] == pd.Timestamp(self.date)) &
             (md['Stock'] == stock) &
             (md['Maturity'] == pd.Timestamp(maturity))
-        ].reset_index()
-        return res.at[0, 'Volatility']
+        ]
+        return res.reset_index().at[0, 'Volatility'] #TODO: how to select first element without reset_index?
 
 
     def optionPrice(self, stock: str, strike: float, maturity: date, putcall: int):
-        res = optionPrice(
+        """
+
+        Today's option price for a given Stock, Strike, Maturity, PutCall
+        """
+        res = option_pricer.price(
             self.spot(stock),
             strike,
             (maturity - self.date).days / self.daysInYear,
@@ -57,6 +67,10 @@ class Context:
             putcall
         )
         return res
+
+    def isTradingDay(self):
+        #TODO: use calendar instead of looking at mktdata
+        return np.datetime64(self.date) in self.tradingdays
 
     def nextEvent(self):
         """

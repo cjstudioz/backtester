@@ -13,11 +13,11 @@ def _d2(S, K, T, r, sigma):
     #TODO: derived from d1?
     return (np.log(S / K) + (r - 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
 
-def optionPrice(S, K, T, r, sigma, putcall):
+def price(S, K, T, r, sigma, putcall, amount=1):
     d1 = _d1(S, K, T, r, sigma)
     d2 = _d2(S, K, T, r, sigma)
     res = (S * si.norm.cdf(putcall * d1, 0.0, 1.0) - K * np.exp(-r * T) * si.norm.cdf(putcall * d2, 0.0, 1.0))
-    return putcall * res
+    return amount * putcall * res
 
 def delta(S, K, T, r, sigma, putcall, amount=1):
     d1 = _d1(S, K, T, r, sigma)

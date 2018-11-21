@@ -1,6 +1,6 @@
 import logging
 logging.basicConfig()
-logging.getLogger().setLevel(logging.DEBUG)
+logging.getLogger().setLevel(logging.INFO)
 
 from backtester.core.context import Context
 from datetime import timedelta
@@ -23,7 +23,7 @@ def getMktData():
 
     dfGroupedByInterp = pd.DataFrame(df.groupby(['Date', 'Spot']).apply(_groupbyInterpFunc))
     interpFuncDict = dfGroupedByInterp.to_dict('index')
-    daysToMaturity = np.array(range(3,85))
+    daysToMaturity = np.array(range(1,91))
     interpDict = {k: v[0](daysToMaturity) for k,v in interpFuncDict.items()}
     listOfDfs = [pd.DataFrame({'Date': k[0], 'Spot': k[1], 'DaysToMaturity':daysToMaturity, 'Volatility':v}) for k,v in interpDict.items()]
     dfInterpolatedVols = pd.concat(listOfDfs)

@@ -26,16 +26,26 @@ class StrategyStraddle1(Strategy):
         1. Delta hedge optoins position each day
         2. Purchase 25% of cash balance worth of options in stocks list each Friday equally weighted across each stock.
         """
+
         ctx = self.context
-        if ctx.date.weekday() == 4 and np.datetime64(ctx.date) in ctx.tradingdays: #TODO: could be sped up by just iterating through tradingdays but don't want to prematurely optimize
-            tradeNotional = -(self.context.balance * self.fractionPerTrade)/(2*len(self.stocks))
-            for stock in self.stocks:
-                if ctx.balance >= tradeNotional:
-                    for putcall in (OPTION_TYPE_CALL, OPTION_TYPE_PUT):
-                        self.optionsPortfolio.executeTradeByCash(tradeNotional, stock,
-                            ctx.spot(stock),
-                            ctx.date + (self.bday * self.maturityBusinessDaysAhead),
-                            putcall
-                        )
-                else:
-                    self.logger.warning(f'out of money to trade {tradeNotional}. balance: {ctx.balance}')
+        if ctx.isTradingDay(): #Only process business days. TODO: could be sped up by just iterating through tradingdays but don't want to prematurely optimize
+            refNotional = self.refNotional()
+            self.logger.info(f'{ctx.date}: Balance: {self.context.balance}, Options: {self.optionsPortfolio.notional()}, Stock: {self.stockPortfolio.notional()}, ref_notional: {refNotional}')
+
+            deltaByStockDF = self.optionsPortfolio.delta()
+            for stock, deltaAmt in deltaByStockDF.iteritems():
+                self.stockPortfolio.executeTradeTargetAmount(deltaAmt, stock)
+
+            if ctx.date.weekday() == 4: # Friday
+                tradeNotional = (self.refNotional() * self.fractionPerTrade)/(2*len(self.stocks))
+                for stock in self.stocks:
+                    if refNotional >= tradeNotional:
+                        for putcall in (OPTION_TYPE_CALL, OPTION_TYPE_PUT):
+                            self.optionsPortfolio.executeTradeByCash(-tradeNotional, stock,
+                                ctx.spot(stock),
+                                ctx.date + (self.maturityBusinessDaysAhead * self.bday),
+                                putcall
+                            )
+                    else:
+                        raise RuntimeError(f'{ctx.date}: out of money to trade {tradeNotional}. balance: {ctx.balance}')
+                        #self.logger.warning(f'{ctx.date}: out of money to trade {tradeNotional}. balance: {ctx.balance}')
