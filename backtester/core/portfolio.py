@@ -55,6 +55,65 @@ class Portfolio:
         pass
 
 
+class FuturesPortfolio(Portfolio):
+    INDEX = ['Stock']
+    POSITION_COLS = ['Amount', 'PreviousSpot']
+
+    def todaysMktPrice(self, *args):
+        stock = args[0]
+        res = self.context.spot(stock)
+        return res
+
+    def notional(self):
+        return 0
+
+    def marginPnL(self):
+        if not self.dfPositions.empty:
+            res = pd.merge(
+                self.dfPositions.reset_index(),
+                self.context.spots(),
+            how='left', on=['Stock'])
+            res['Date'] = self.context.date
+            res['PnL'] = (res['Spot'] - res['PreviousSpot']) * res['Amount']
+
+            checkForNulls(res)
+            return res
+
+    def executeTrade(self,
+                     amount: float,
+                     stock: str,
+                     ):
+        """
+
+        TODO: make this atomic?
+        TODO: check if balance is > 0?
+        """
+        ctx = self.context
+        price = ctx.spot(stock)
+        self.logger.info(f'{ctx.date}: trading stock: {amount} on {stock} @ {price}')
+
+        self.dfPositions.loc[stock, 'Amount'] = \
+            self.dfPositions.loc[stock, 'Amount'] + amount \
+                if stock in self.dfPositions.index \
+                else amount
+
+        self.dfPositions.loc[stock, 'PreviousSpot'] = price
+
+
+
+    def handleEventPre(self):
+        if self.context.isTradingDay():
+            pnlDF = self.marginPnL()
+            if pnlDF is not None:
+                ctx = self.context
+                self.dfPositions['PreviousSpot'] = pnlDF['Spot']
+                pnl = pnlDF['PnL'].sum()
+                self.logger.info(f'{ctx.date}: futures pnl adjustment: \n{pnlDF}')
+                ctx.balance += pnl
+
+                self.dfPositionsHist.append(pnlDF)
+
+
 class StockPortfolio(Portfolio):
     INDEX = ['Stock']
     POSITION_COLS = ['Amount']
@@ -92,7 +151,7 @@ class StockPortfolio(Portfolio):
         ctx = self.context
         self.dfPositions.loc[stock, 'Amount'] = \
             self.dfPositions.loc[stock, 'Amount'] + amount \
-                if stock in self.dfPositions \
+                if stock in self.dfPositions.index \
                 else amount
 
         if price is None:
@@ -166,7 +225,7 @@ class OptionsPortfolio(Portfolio):
         joined['Rate'] = ctx.rate
 
         self.logger.debug(f'pricing params: {joined}')
-        checkForNulls(joined)
+        #checkForNulls(joined)
         return joined
 
     def _pricingParams(self):
@@ -198,7 +257,7 @@ class OptionsPortfolio(Portfolio):
             self.logger.info(f'{ctx.date}: expiring options\n{joined}')
             checkForNulls(joined)
 
-            ctx.balance -= joined['Settlement'].sum()
+            ctx.balance += joined['Settlement'].sum()
 
             #delete expired options
             self.dfPositions = self.dfPositions.query(f"Maturity > '{maturityStr}'")

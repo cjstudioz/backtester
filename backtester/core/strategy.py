@@ -1,4 +1,4 @@
-from backtester.core.portfolio import OptionsPortfolio, StockPortfolio
+from backtester.core.portfolio import OptionsPortfolio, FuturesPortfolio
 from backtester.core.context import Context
 import logging
 
@@ -6,7 +6,7 @@ class Strategy:
     def __init__(self, context: Context):
         self.context = context
         self.optionsPortfolio = OptionsPortfolio(context)
-        self.stockPortfolio = StockPortfolio(context)
+        self.stockPortfolio = FuturesPortfolio(context)
         self.logger = logging.getLogger(__name__)
 
     def run(self):
@@ -24,7 +24,7 @@ class Strategy:
         Current Total Value of all portfolios including cash
         TODO: unsure if this belongs in context instead
         """
-        res = self.stockPortfolio.notional() + self.optionsPortfolio.notional() + self.context.balance
+        res = self.context.balance + self.optionsPortfolio.notional() #+ self.stockPortfolio.notional()
         return res
 
     def handleEvent(self):
