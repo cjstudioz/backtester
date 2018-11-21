@@ -69,6 +69,7 @@ class StockPortfolio(Portfolio):
             self.dfPositions.reset_index(),
             self.context.spots(),
         how='left', on=['Stock'])
+        res['Date'] = self.context.date
         res['Price'] = res['Spot'] * res['Amount']
 
         checkForNulls(res)
