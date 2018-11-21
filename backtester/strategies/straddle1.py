@@ -19,6 +19,7 @@ class StrategyStraddle1(Strategy):
                  *args, **kwargs):
         self.stocks, self.fractionPerTrade, self.maturityBusinessDaysAhead = stocks, fractionPerTrade, maturityBusinessDaysAhead
         self.bday = businessDay or CustomBusinessDay(calendar=context.mktdata['Date'].unique())
+        self.notionalDf = []
         super().__init__(context, *args, **kwargs)
 
 
@@ -31,7 +32,9 @@ class StrategyStraddle1(Strategy):
         ctx = self.context
         if ctx.isTradingDay(): #Only process business days. TODO: could be sped up by just iterating through tradingdays but don't want to prematurely optimize
             refNotional = self.refNotional()
-            self.logger.info(f'{ctx.date}: Balance: {self.context.balance}, Options: {self.optionsPortfolio.notional()}, Stock: {self.stockPortfolio.notional()}, ref_notional: {refNotional}')
+            optionsNotional = self.optionsPortfolio.notional()
+            self.logger.info(f'{ctx.date}: Balance: {ctx.balance}, Options: {self.optionsPortfolio.notional()}, Stock: {self.stockPortfolio.notional()}, ref_notional: {refNotional}')
+            self.notionalDf.append([ctx.date, ctx.balance, optionsNotional])
 
             # Sell 25% options on Friday
             if ctx.date.weekday() == 4:
