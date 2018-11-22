@@ -5,7 +5,7 @@ from backtester.core import option_pricer
 from backtester.utils.pandas import checkForNulls
 from datetime import date
 from backtester.core.context import Context
-from functools import partial
+from functools import partial, lru_cache
 
 #TRANSACTION_COLS = INDEX
 
@@ -224,7 +224,6 @@ class OptionsPortfolio(Portfolio):
         joined['TimeToMaturity'] = (joined['Maturity'] - ctx.date).dt.days / ctx.daysInYear
         joined['Rate'] = ctx.rate
 
-        self.logger.debug(f'pricing params: {joined}')
         #checkForNulls(joined)
         return joined
 
@@ -233,12 +232,13 @@ class OptionsPortfolio(Portfolio):
         res = augm[self.PRICING_COLS].values.transpose()
         return res
 
-    def positionsGreeks(self): #TODO: calculate all greeks
+    def positionsGreeks(self):
         paramsDf = self.dfPositionsAugmented()
         for greek in self.GREEKS:
             func = getattr(option_pricer, greek.lower())
             paramsDf[greek] = func(*self._pricingParams())
 
+        self.logger.debug(f'{self.context.date}: greeks: {paramsDf}')
         return paramsDf
 
     def _getGreek(self, greek):
@@ -263,6 +263,11 @@ class OptionsPortfolio(Portfolio):
             self.dfPositions = self.dfPositions.query(f"Maturity > '{maturityStr}'")
 
     def handleEventPre(self):
+        # HACK to clear cached functions for the day
+        # for func in (self.positionsGreeks, self.dfPositionsAugmented):
+        #     self.logger.debug(f'Memoized: {func.__name__}: {func.cache_info()}')
+        #     func.cache_clear()
+
         if self.context.isTradingDay():
             self.settleOptions()
 
