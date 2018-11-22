@@ -1,7 +1,3 @@
-import logging
-logging.basicConfig()
-logging.getLogger().setLevel(logging.INFO)
-
 import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
