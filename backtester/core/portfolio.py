@@ -17,6 +17,7 @@ class Portfolio:
         ).set_index(self.INDEX)
         self.dfPositions['Amount'] = self.dfPositions['Amount'].astype(np.float64) #HACK this is so ugly. no way to create empty dataframe with types!!!
         self.dfPositionsHist = []
+        self.dfTradeHist = []
         
         self.logger = logging.getLogger(__name__)
         
@@ -172,6 +173,8 @@ class OptionsPortfolio(Portfolio):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.dfExpiryHist = []
+
         #dynamically create greek functions
         for greek in self.GREEKS:
             setattr(self, greek.lower(), partial(self._getGreek, greek=greek))
@@ -204,6 +207,7 @@ class OptionsPortfolio(Portfolio):
 
         putcallstr = 'call' if putcall == option_pricer.OPTION_TYPE_CALL else 'put'
         self.logger.info(f'{ctx.date}: trading option: {amount} of {maturity} {strike} {putcallstr} on {stock} @ {price}')
+        self.dfTradeHist.append([ctx.date, stock, maturity, strike, putcallstr, amount, price])
 
         ctx.balance -= price * amount
 
@@ -255,6 +259,8 @@ class OptionsPortfolio(Portfolio):
             joined['Moniness'] = joined.eval("Amount * PutCall * (Spot - Strike)")
             joined['Settlement'] = np.where(joined['Amount'] > 0, np.maximum(0, joined['Moniness']), np.minimum(0, joined['Moniness']))
             self.logger.info(f'{ctx.date}: expiring options\n{joined}')
+            self.dfExpiryHist = pd.concat(self.dfExpiryHist, joined)
+
             checkForNulls(joined)
 
             ctx.balance += joined['Settlement'].sum()
