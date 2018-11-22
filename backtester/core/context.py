@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from datetime import date, timedelta
 from backtester.core import option_pricer
+from backtester.utils.pandas import generateHolidays
+from pandas.tseries.offsets import CustomBusinessDay
 import logging
 
 class Context:
@@ -14,8 +16,11 @@ class Context:
                  ):
         self.mktdata, self.balance, self.daysInYear, self.rate = mktdata, balance, daysInYear, rate
         self.date = startdate or np.min(mktdata['Date'])
-        self.tradingdays = mktdata['Date'].unique() #HACK should really use a holiday calendar
         self.logger = logging.getLogger(__name__)
+
+        self.businessdays = mktdata['Date'].unique()
+        holidays = generateHolidays(self.businessdays) #HACK should really use a holiday calendar
+        self.businessday = pd.tseries.offsets.CustomBusinessDay(holidays=holidays)
 
     def spots(self):
         """
@@ -70,7 +75,7 @@ class Context:
 
     def isTradingDay(self):
         #TODO: use calendar instead of looking at mktdata
-        return np.datetime64(self.date) in self.tradingdays
+        return np.datetime64(self.date) in self.businessdays
 
     def nextEvent(self):
         """

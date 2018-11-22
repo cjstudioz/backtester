@@ -1,8 +1,6 @@
 from backtester.core.option_pricer import OPTION_TYPE_CALL, OPTION_TYPE_PUT
 from backtester.core.strategy import Strategy
 from backtester.core.context import Context
-from pandas.tseries.offsets import CustomBusinessDay
-#from backtester.core.calendar import getTradingCalendar
 import numpy as np
 
 OPTION_TYPES = (OPTION_TYPE_CALL, OPTION_TYPE_PUT)
@@ -18,7 +16,6 @@ class StrategyStraddle1(Strategy):
                  businessDay=None,
                  *args, **kwargs):
         self.stocks, self.fractionPerTrade, self.maturityBusinessDaysAhead = stocks, fractionPerTrade, maturityBusinessDaysAhead
-        self.bday = businessDay or CustomBusinessDay(calendar=context.mktdata['Date'].unique())
         self.notionalDf = []
         super().__init__(context, *args, **kwargs)
 
@@ -41,7 +38,7 @@ class StrategyStraddle1(Strategy):
                 tradeNotional = (self.refNotional() * self.fractionPerTrade)/len(self.stocks)
                 for stock in self.stocks:
                     if refNotional >= tradeNotional:
-                        maturity = ctx.date + (self.maturityBusinessDaysAhead * self.bday)
+                        maturity = ctx.date + self.maturityBusinessDaysAhead * ctx.businessday
                         straddleprice = sum([ctx.optionPrice(stock, ctx.spot(stock), maturity, putcall) for putcall in OPTION_TYPES])
                         amount = tradeNotional/straddleprice/2
                         for putcall in OPTION_TYPES:
