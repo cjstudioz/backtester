@@ -1,3 +1,7 @@
+import logging
+logging.basicConfig()
+logging.getLogger().setLevel(logging.DEBUG)
+
 from backtester.core.context import Context
 from backtester.strategies.straddle1 import StrategyStraddle1
 from backtester.utils.mktdata import createVolSurface
