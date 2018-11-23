@@ -11,7 +11,7 @@ from backtester.utils.mktdata import createVolSurface, readMktData
 from datetime import datetime
 
 if __name__ == '__main__':
-    filaname = r'C:\Users\Administrator\PycharmProjects\backtester\data\spx_vols.txt'
+    filename = r'C:\Users\Administrator\PycharmProjects\backtester\data\spx_vols.txt'
     rawMktData = readMktData(filename)
     dfMktdata = createVolSurface(rawMktData)
     context = Context(dfMktdata,
