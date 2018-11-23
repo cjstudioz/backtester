@@ -7,12 +7,13 @@ logging.getLogger().setLevel(logging.INFO)
 
 from backtester.core.context import Context
 from backtester.strategies.straddle1 import StrategyStraddle1
-from backtester.utils.mktdata import createVolSurface
+from backtester.utils.mktdata import createVolSurface, readMktData
 from datetime import datetime
 
 if __name__ == '__main__':
     filaname = r'C:\Users\Administrator\PycharmProjects\backtester\data\spx_vols.txt'
-    dfMktdata = createVolSurface(filaname)
+    rawMktData = readMktData(filename)
+    dfMktdata = createVolSurface(rawMktData)
     context = Context(dfMktdata,
                       balance=10000,
                       #enddate=datetime(2013, 5, 5)
@@ -42,7 +43,7 @@ if __name__ == '__main__':
     dfTradeHistStock = strategy.stockPortfolio.dfTradeHist()
         
     
-    csvOutputDir = 'c:/temp/strategy_results/'
+    csvOutputDir = 'c:/temp/strategy_results2/'
     localItems = {k: v for k,v in locals().items() if k.startswith('df')}
     for attr, val in localItems.items():    
         print(f'writing {attr}')
