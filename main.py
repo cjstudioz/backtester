@@ -21,17 +21,26 @@ if __name__ == '__main__':
     strategy = StrategyStraddle1(context)
     strategy.run()
         
-    # Reporting out CSVs
+    
+    # Reporting out CSVs which is eventually consumed by Tableau
     import pandas as pd
     
+    primarykey = ['Date','Stock']
     dfPositionsHistOptions = pd.concat(strategy.optionsPortfolio.dfPositionsHist)
-    dfGreeksAgg = dfPositionsHistOptions.groupby(['Date','Stock'])[strategy.optionsPortfolio.GREEKS].sum().reset_index()
+    dfGreeksAgg = dfPositionsHistOptions.groupby(primarykey)[strategy.optionsPortfolio.GREEKS].sum().reset_index()
     dfPositionsHistFutures = pd.concat(strategy.stockPortfolio.dfPositionsHist)
     dfNotional = strategy.dfNotionalHist()
-    dfExpiryHist = pd.concat(strategy.optionsPortfolio.dfExpiryHist)
-    dfTradeHistOptions = strategy.optionsPortfolio.dfTradeHist()
-    dfTradeHistStock = strategy.stockPortfolio.dfTradeHist()
+    dfExpiryHist = pd.concat(strategy.optionsPortfolio.dfExpiryHist)    
     
+    dfTradeHistOptions = strategy.optionsPortfolio.dfTradeHist()
+    dfTradeHistOptions['PnL'] = dfTradeHistOptions.eval('-Price * Amount')    
+    dfTradeHistOptionsAggPnL = pd.concat([
+            dfTradeHistOptions[primarykey + ['PnL']],
+            dfExpiryHist[primarykey + ['PnL']]
+    ]).groupby(primarykey).sum().reset_index()
+    
+    dfTradeHistStock = strategy.stockPortfolio.dfTradeHist()
+        
     
     csvOutputDir = 'c:/temp/strategy_results/'
     localItems = {k: v for k,v in locals().items() if k.startswith('df')}

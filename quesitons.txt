@@ -1,5 +1,11 @@
 - if run out of money, still hedge?
 - what holiday calendar?
+- 25 busday maturity = Friday expiry?
+
+Asusmptions
+- CFD requires no margin and can trade position even when no balance
+
+
 
 TODO:
 - dfPositions Types
