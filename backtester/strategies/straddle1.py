@@ -1,7 +1,7 @@
 from backtester.core.option_pricer import OPTION_TYPE_CALL, OPTION_TYPE_PUT
 from backtester.core.strategy import Strategy
 from backtester.core.context import Context
-import numpy as np
+import pandas as pd
 
 OPTION_TYPES = (OPTION_TYPE_CALL, OPTION_TYPE_PUT)
 
@@ -13,12 +13,17 @@ class StrategyStraddle1(Strategy):
                  stocks=list(DEFAULT_STOCKS),
                  fractionPerTrade=0.25,
                  maturityBusinessDaysAhead=25,
-                 businessDay=None,
                  *args, **kwargs):
         self.stocks, self.fractionPerTrade, self.maturityBusinessDaysAhead = stocks, fractionPerTrade, maturityBusinessDaysAhead
-        self.notionalDf = []
+        self._notionalHist = []
         super().__init__(context, *args, **kwargs)
 
+    def dfNotionalHist(self):
+        """
+        For Post Sim Reporting build a dataframe trade history list
+        """
+        res = pd.DataFrame(self._notionalHist, columns=['Date', 'CashBalance', 'OptionsPosition'])
+        return res
 
     def handleEvent(self):
         """
@@ -30,8 +35,8 @@ class StrategyStraddle1(Strategy):
         if ctx.isTradingDay(): #Only process business days. TODO: could be sped up by just iterating through tradingdays but don't want to prematurely optimize
             refNotional = self.refNotional()
             optionsNotional = self.optionsPortfolio.notional()
-            self.logger.info(f'{ctx.date}: Balance: {ctx.balance}, Options: {self.optionsPortfolio.notional()}, Stock: {self.stockPortfolio.notional()}, ref_notional: {refNotional}')
-            self.notionalDf.append([ctx.date, ctx.balance, optionsNotional])
+            self.logger.info(f'{ctx.date}: Start if day Balance: {ctx.balance}, Options: {self.optionsPortfolio.notional()}, Stock: {self.stockPortfolio.notional()}, ref_notional: {refNotional}')
+            self._notionalHist.append([ctx.date - ctx.businessday, ctx.balance, optionsNotional])
 
             # Sell 25% options on Friday
             if ctx.date.weekday() == 4:

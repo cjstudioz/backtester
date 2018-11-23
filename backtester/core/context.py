@@ -10,12 +10,14 @@ class Context:
     def __init__(self,
                  mktdata: pd.DataFrame, #TODO: pass separate mktdata in for spot so no dupes
                  startdate: date=None,
+                 enddate: date=None,
                  balance: float=0,
                  daysInYear: int=360,
                  rate: float=0.01,
                  ):
         self.mktdata, self.balance, self.daysInYear, self.rate = mktdata, balance, daysInYear, rate
-        self.date = startdate or np.min(mktdata['Date'])
+        self.date = startdate or mktdata['Date'].min()
+        self.enddate = enddate or mktdata['Date'].max()
         self.logger = logging.getLogger(__name__)
 
         self.businessdays = mktdata['Date'].unique()
@@ -84,7 +86,7 @@ class Context:
         """
 
         self.date += timedelta(days=1)
-        if self.date > self.mktdata['Date'].max():
+        if self.date > self.enddate:
             return False
 
         return True

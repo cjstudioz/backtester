@@ -16,11 +16,17 @@ class Portfolio:
             columns=self.INDEX + self.POSITION_COLS,
         ).set_index(self.INDEX)
         self.dfPositions['Amount'] = self.dfPositions['Amount'].astype(np.float64) #HACK this is so ugly. no way to create empty dataframe with types!!!
-        self.dfPositionsHist = []
-        self.dfTradeHist = []
+        self.dfPositionsHist = [] #list of DFs
+        self._tradeHist = [] #list of lists
         
         self.logger = logging.getLogger(__name__)
         
+    def dfTradeHist(self):
+        """
+        For Post Sim Reporting build a dataframe trade history list
+        """
+        res = pd.DataFrame(self._tradeHist, columns=self.TRADE_COLS)
+        return res
 
     def executeTradeByCash(self, cashAmount: float, *args, **kwargs):
         """
@@ -59,6 +65,7 @@ class Portfolio:
 class FuturesPortfolio(Portfolio):
     INDEX = ['Stock']
     POSITION_COLS = ['Amount', 'PreviousSpot']
+    TRADE_COLS=['Date'] + INDEX + ['Amount', 'Price']
 
     def todaysMktPrice(self, *args):
         stock = args[0]
@@ -99,6 +106,7 @@ class FuturesPortfolio(Portfolio):
                 else amount
 
         self.dfPositions.loc[stock, 'PreviousSpot'] = price
+        self._tradeHist.append([ctx.date, stock, amount, price])
 
 
 
@@ -106,70 +114,26 @@ class FuturesPortfolio(Portfolio):
         if self.context.isTradingDay():
             pnlDF = self.marginPnL()
             if pnlDF is not None:
+                # record position change
+                self.dfPositionsHist.append(pnlDF)
+
+                # reset current spot
                 ctx = self.context
                 self.dfPositions['PreviousSpot'] = pnlDF['Spot']
+
+                # settle daily margin balance
                 pnl = pnlDF['PnL'].sum()
                 self.logger.info(f'{ctx.date}: futures pnl adjustment: \n{pnlDF}')
                 ctx.balance += pnl
 
-                self.dfPositionsHist.append(pnlDF)
 
-
-class StockPortfolio(Portfolio):
-    INDEX = ['Stock']
-    POSITION_COLS = ['Amount']
-
-    def todaysMktPrice(self, *args):
-        stock = args[0]
-        res = self.context.spot(stock)
-        return res
-
-    def positionPrices(self):
-        res = pd.merge(
-            self.dfPositions.reset_index(),
-            self.context.spots(),
-        how='left', on=['Stock'])
-        res['Date'] = self.context.date
-        res['Price'] = res['Spot'] * res['Amount']
-
-        checkForNulls(res)
-        return res
-
-
-    def notional(self):
-        return self.positionPrices()['Price'].sum()
-
-    def executeTrade(self,
-                     amount: float,
-                     stock: str,
-                     price: float= None
-                     ):
-        """
-
-        TODO: make this atomic?
-        TODO: check if balance is > 0?
-        """
-        ctx = self.context
-        self.dfPositions.loc[stock, 'Amount'] = \
-            self.dfPositions.loc[stock, 'Amount'] + amount \
-                if stock in self.dfPositions.index \
-                else amount
-
-        if price is None:
-            price = self.todaysMktPrice(stock)
-
-        self.logger.info(f'{ctx.date}: trading stock: {amount} on {stock} @ {price}')
-        ctx.balance -= price * amount
-
-    def handleEventPost(self):
-        if self.context.isTradingDay():
-            self.dfPositionsHist.append(self.positionPrices())
 
 class OptionsPortfolio(Portfolio):
     INDEX = ['Stock', 'Strike', 'Maturity', 'PutCall']
     POSITION_COLS = ['Amount']
     PRICING_COLS = ['Spot', 'Strike', 'TimeToMaturity', 'Rate', 'Volatility', 'PutCall', 'Amount']
     GREEKS = ['Price', 'Delta', 'Gamma', 'Theta', 'Vega']
+    TRADE_COLS = ['Date'] + INDEX + POSITION_COLS + ['Price']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -178,7 +142,6 @@ class OptionsPortfolio(Portfolio):
         #dynamically create greek functions
         for greek in self.GREEKS:
             setattr(self, greek.lower(), partial(self._getGreek, greek=greek))
-
 
     def todaysMktPrice(self, *args):
         res = self.context.optionPrice(*args[:4])
@@ -207,7 +170,7 @@ class OptionsPortfolio(Portfolio):
 
         putcallstr = 'call' if putcall == option_pricer.OPTION_TYPE_CALL else 'put'
         self.logger.info(f'{ctx.date}: trading option: {amount} of {maturity} {strike} {putcallstr} on {stock} @ {price}')
-        self.dfTradeHist.append([ctx.date, stock, maturity, strike, putcallstr, amount, price])
+        self._tradeHist.append([ctx.date, stock, maturity, strike, putcallstr, amount, price])
 
         ctx.balance -= price * amount
 
@@ -259,7 +222,7 @@ class OptionsPortfolio(Portfolio):
             joined['Moniness'] = joined.eval("Amount * PutCall * (Spot - Strike)")
             joined['Settlement'] = np.where(joined['Amount'] > 0, np.maximum(0, joined['Moniness']), np.minimum(0, joined['Moniness']))
             self.logger.info(f'{ctx.date}: expiring options\n{joined}')
-            self.dfExpiryHist = pd.concat(self.dfExpiryHist, joined)
+            self.dfExpiryHist.append(joined)
 
             checkForNulls(joined)
 
