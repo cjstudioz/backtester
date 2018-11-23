@@ -114,7 +114,7 @@ class FuturesPortfolio(Portfolio):
 
 
 
-    def handleEventPost(self):
+    def handleEventPre(self):
         pnlDF = self.marginPnL()
         if pnlDF is not None:
             # record position change
@@ -125,7 +125,7 @@ class FuturesPortfolio(Portfolio):
             self.dfPositions['PreviousSpot'] = pnlDF['Spot']
 
             # settle daily margin balance
-            pnl = pnlDF['PnL'].sum()
+            pnl = pnlDF['PnL'].sum() # HACK Unforunately have to do this before strategy.handleEvent() otherwise would have to implement position effective date in futures Portfolio
             self.logger.info(f'{ctx.date}: futures pnl adjustment: \n{pnlDF}')
             ctx.balance += pnl
 
@@ -223,13 +223,13 @@ class OptionsPortfolio(Portfolio):
             joined = pd.merge(dfExpired.reset_index(), mktdata, how='left', left_on=['Stock', 'Maturity'], right_on=['Stock', 'Date'])
 
             joined['Moniness'] = joined.eval("Amount * PutCall * (Spot - Strike)")
-            joined['Settlement'] = np.where(joined['Amount'] > 0, np.maximum(0, joined['Moniness']), np.minimum(0, joined['Moniness']))
+            joined['PnL'] = np.where(joined['Amount'] > 0, np.maximum(0, joined['Moniness']), np.minimum(0, joined['Moniness']))
             self.logger.info(f'{ctx.date}: expiring options\n{joined}')
             self.dfExpiryHist.append(joined)
 
             checkForNulls(joined)
 
-            ctx.balance += joined['Settlement'].sum()
+            ctx.balance += joined['PnL'].sum()
 
             #delete expired options
             self.dfPositions = self.dfPositions.query(f"Maturity > '{maturityStr}'")
