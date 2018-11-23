@@ -63,6 +63,10 @@ class Portfolio:
 
 
 class FuturesPortfolio(Portfolio):
+    """
+    Naive implementation of a CFD with no interest. assumes no margin required and still able to trade in and out of position with 0 or less cash balance.
+    """
+
     INDEX = ['Stock']
     POSITION_COLS = ['Amount', 'PreviousSpot']
     TRADE_COLS=['Date'] + INDEX + ['Amount', 'Price']
@@ -110,21 +114,20 @@ class FuturesPortfolio(Portfolio):
 
 
 
-    def handleEventPre(self):
-        if self.context.isTradingDay():
-            pnlDF = self.marginPnL()
-            if pnlDF is not None:
-                # record position change
-                self.dfPositionsHist.append(pnlDF)
+    def handleEventPost(self):
+        pnlDF = self.marginPnL()
+        if pnlDF is not None:
+            # record position change
+            self.dfPositionsHist.append(pnlDF)
 
-                # reset current spot
-                ctx = self.context
-                self.dfPositions['PreviousSpot'] = pnlDF['Spot']
+            # reset current spot
+            ctx = self.context
+            self.dfPositions['PreviousSpot'] = pnlDF['Spot']
 
-                # settle daily margin balance
-                pnl = pnlDF['PnL'].sum()
-                self.logger.info(f'{ctx.date}: futures pnl adjustment: \n{pnlDF}')
-                ctx.balance += pnl
+            # settle daily margin balance
+            pnl = pnlDF['PnL'].sum()
+            self.logger.info(f'{ctx.date}: futures pnl adjustment: \n{pnlDF}')
+            ctx.balance += pnl
 
 
 
@@ -170,7 +173,7 @@ class OptionsPortfolio(Portfolio):
 
         putcallstr = 'call' if putcall == option_pricer.OPTION_TYPE_CALL else 'put'
         self.logger.info(f'{ctx.date}: trading option: {amount} of {maturity} {strike} {putcallstr} on {stock} @ {price}')
-        self._tradeHist.append([ctx.date, stock, maturity, strike, putcallstr, amount, price])
+        self._tradeHist.append([ctx.date, stock, strike, maturity, putcallstr, amount, price])
 
         ctx.balance -= price * amount
 
@@ -191,7 +194,7 @@ class OptionsPortfolio(Portfolio):
         joined['TimeToMaturity'] = (joined['Maturity'] - ctx.date).dt.days / ctx.daysInYear
         joined['Rate'] = ctx.rate
 
-        #checkForNulls(joined)
+        checkForNulls(joined)
         return joined
 
     def _pricingParams(self):
@@ -241,5 +244,5 @@ class OptionsPortfolio(Portfolio):
             self.settleOptions()
 
     def handleEventPost(self):
-        if self.context.isTradingDay():
-            self.dfPositionsHist.append(self.positionsGreeks())
+        self.dfPositionsHist.append(self.positionsGreeks())
+
