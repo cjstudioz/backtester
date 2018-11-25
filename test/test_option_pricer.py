@@ -19,7 +19,7 @@ class TestVanillaEuPricer(unittest.TestCase):
     """
     POOL = ThreadPool(8)
 
-    def _generateInputs(self, size=10):
+    def _generateInputs(self, size=100):
         randomArray = np.random.rand(6, size)
         randomArray[0] *= 100 #spot
         randomArray[1] = np.random.lognormal(0, 0.5, size) * randomArray[0]
