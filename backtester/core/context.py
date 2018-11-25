@@ -13,6 +13,10 @@ class Context:
                  balance: float=0,
                  rate: float=0.01,
                  ):
+        """
+
+        TODO: find a way to communicate which properties are mutable vs immutable
+        """
         self.mktdata, self.balance, self.rate = mktdata, balance, rate
         self.date = startdate or mktdata['Date'].min()
         self.enddate = enddate or mktdata['Date'].max()
