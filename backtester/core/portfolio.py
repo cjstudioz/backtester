@@ -121,7 +121,7 @@ class FuturesPortfolio(Portfolio):
 
             # reset current spot
             ctx = self.context
-            self.dfPositions['PreviousSpot'] = pnlDF['Spot']
+            self.dfPositions['PreviousSpot'] = pnlDF.set_index('Stock')['Spot']
 
             # settle daily margin balance
             pnl = pnlDF['PnL'].sum() # HACK Unforunately have to do this before strategy.handleEvent() otherwise would have to implement position effective date in futures Portfolio
