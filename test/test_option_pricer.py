@@ -1,30 +1,81 @@
 import unittest
-from test.web_options_pricer import webOptionsPricer
-from backtester.core
+import pandas as pd
+import numpy as np
+from backtester.pricers import black_scholes_option_pricer as bsp
+from backtester.pricers.option_types import OptionTypes
+from test.web_options_pricer import webOptionsPricerWrapper
+from multiprocessing.pool import ThreadPool
+
+pd.set_option('display.max_rows', 50)
+pd.set_option('display.max_columns', 20)
 
 class TestVanillaEuPricer(unittest.TestCase):
-    def test_sample(self):
-        webOptionsPricer(50.0000, 100.0000, 0.00, 5.00, 25.00, 1.0000)
+    """
+    HACK: This isn't meant ot be a unit test but rather a one off sanity test using random numbers into another model
+    I'm aware unit tests should be reproducable and ideally self contained.
+    Could potentially persist the random inputs and external results and test against that
+    """
+    POOL = ThreadPool(8)
+
+    def _generateInputs(self, size=100):
+        randomArray = np.random.rand(6, size)
+        randomArray[0] *= 100 #spot
+        randomArray[1] = np.random.lognormal(0, 0.5, size) * randomArray[0]
+        randomArray[2] *= 5 #time to maturity
+        randomArray[3] /= 5 #rates
+        randomArray[4] *= 4 #rates
+        randomArray[5] = 1
+        return randomArray
+
+
+    def test_sample(self, epsilon = 5e-05):
+        inputs = self._generateInputs()
+        greeks = ['price', 'delta', 'gamma']  # , 'theta']
+        bulkRes = {}
+
+        for putcall in OptionTypes:
+            inputs[5] = putcall.value
+            webinputs = inputs.transpose()
+
+            bulkRes.setdefault('inputs', {})[putcall.name] = pd.DataFrame(webinputs)
+
+            bulkRes.setdefault('numpy', {})[putcall.name] = pd.DataFrame(
+                {greek: getattr(bsp, greek)(*inputs) for greek in greeks}
+            )
+
+            bulkRes.setdefault('py', {})[putcall.name] = pd.DataFrame(
+                {greek: [getattr(bsp, greek)(*webinput) for webinput in webinputs] for greek in greeks}
+            )
+
+            bulkRes.setdefault('web', {})[putcall.name] = pd.DataFrame(
+                self.POOL.map(lambda webinput: webOptionsPricerWrapper(*webinput), webinputs)
+            )
+
+        # hack for now:
+        bulkRes['web']['CALL'] = bulkRes['web']['CALL'][greeks]
+        bulkRes['web']['PUT'] = bulkRes['web']['PUT'][greeks]
+
+        for restype in ['py', 'numpy']:
+            # restype = 'py'
+            # deltas sum to 1
+            sumdelta = bulkRes[restype]['CALL']['delta'] - bulkRes[restype]['PUT']['delta']
+            mask = sumdelta != 1
+            self.assertTrue(sumdelta[mask].empty, 'put + call delta == 1')
+
+            for putcall in OptionTypes:
+                # putcall = OptionTypes.PUT
+                epsilons = bulkRes[restype][putcall.name] - bulkRes['web'][putcall.name]
+                mask = (epsilons.abs() > epsilon).any(axis=1)
+
+                if not epsilons[mask].empty:
+                    diffs = pd.concat([
+                        bulkRes['inputs'][putcall.name][mask],
+                        epsilons[mask],
+                        bulkRes[restype][putcall.name][mask],
+                        bulkRes['web'][putcall.name][mask],
+                    ], axis=1)
+                    self.assertTrue(False, f'unexpected diffs:\n{diffs}')
 
 if __name__ == '__main__':
     unittest.main()
 
-
-
-class TestVanillaEuPricer()
-
-
-
-
-
-for _ in range(100):
-    params = [
-        randint(0, 200),
-        randint(0, 200),
-        0,
-        randint(0, 100) / 10,
-        randint(0, 100),
-        randint(0, 100) / 100,
-    ]
-    put, call = [webOptionsPricer(*params + [putcall]) for putcall in (0, 1)]
-    print(put, call)
