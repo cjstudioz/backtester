@@ -1,9 +1,7 @@
 import numpy as np
 import scipy.stats as si
-from functools import lru_cache
 
-OPTION_TYPE_CALL = 1
-OPTION_TYPE_PUT = -1
+DAYS_IN_YEAR = 360
 
 def _d1(S, K, T, r, sigma):
     return (np.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))

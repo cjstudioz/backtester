@@ -1,15 +1,20 @@
 import logging
 import numpy as np
 import pandas as pd
-from backtester.core import option_pricer
+from backtester.pricers import black_scholes_option_pricer
+from backtester.pricers.option_types import OptionTypes
 from backtester.utils.pandas import checkForNulls
 from datetime import date
 from backtester.core.context import Context
-from functools import partial, lru_cache
+from functools import partial
+
 
 #TRANSACTION_COLS = INDEX
 
 class Portfolio:
+    """
+    Abstract base class (though not strictly) do not instantiate this
+    """
     def __init__(self, context: Context):
         self.context = context
         self.dfPositions = pd.DataFrame(
@@ -52,9 +57,6 @@ class Portfolio:
     def todaysMktPrice(self, *args):
         raise NotImplementedError()
 
-    def todaysNotional(self, *args):
-        raise NotImplementedError()
-
     def handleEventPre(self):
         pass
 
@@ -75,9 +77,6 @@ class FuturesPortfolio(Portfolio):
         stock = args[0]
         res = self.context.spot(stock)
         return res
-
-    def notional(self):
-        return 0
 
     def marginPnL(self):
         if not self.dfPositions.empty:
@@ -138,16 +137,33 @@ class OptionsPortfolio(Portfolio):
     GREEKS = ['Price', 'Delta', 'Gamma', 'Theta', 'Vega']
     TRADE_COLS = ['Date'] + INDEX + POSITION_COLS + ['Price']
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, pricer=black_scholes_option_pricer, **kwargs):
         super().__init__(*args, **kwargs)
+        self.pricer = pricer
         self.dfExpiryHist = []
 
         #dynamically create greek functions
         for greek in self.GREEKS:
             setattr(self, greek.lower(), partial(self._getGreek, greek=greek))
 
+    def optionPrice(self, stock: str, strike: float, maturity: date, putcall: int):
+        """
+
+        Today's option price for a given Stock, Strike, Maturity, PutCall
+        """
+        ctx = self.context
+        res = self.pricer.price(
+            ctx.spot(stock),
+            strike,
+            (maturity - ctx.date).days / self.pricer.DAYS_IN_YEAR,
+            ctx.rate,
+            ctx.vol(stock, maturity),
+            putcall
+        )
+        return res
+
     def todaysMktPrice(self, *args):
-        res = self.context.optionPrice(*args[:4])
+        res = self.optionPrice(*args[:4])
         return res
 
     def notional(self):
@@ -171,7 +187,7 @@ class OptionsPortfolio(Portfolio):
         ctx = self.context
         price = price or self.todaysMktPrice(stock, strike, maturity, putcall)
 
-        putcallstr = 'call' if putcall == option_pricer.OPTION_TYPE_CALL else 'put'
+        putcallstr = OptionTypes(putcall)
         self.logger.info(f'{ctx.date}: trading option: {amount} of {maturity} {strike} {putcallstr} on {stock} @ {price}')
         self._tradeHist.append([ctx.date, stock, strike, maturity, putcallstr, amount, price])
 
@@ -191,7 +207,7 @@ class OptionsPortfolio(Portfolio):
             mktdata[mktdata['Date'] == pd.Timestamp(self.context.date)],
             how='left', on=['Stock', 'Maturity'],
         )
-        joined['TimeToMaturity'] = (joined['Maturity'] - ctx.date).dt.days / ctx.daysInYear
+        joined['TimeToMaturity'] = (joined['Maturity'] - ctx.date).dt.days / self.pricer.DAYS_IN_YEAR
         joined['Rate'] = ctx.rate
 
         checkForNulls(joined)
@@ -205,7 +221,7 @@ class OptionsPortfolio(Portfolio):
     def positionsGreeks(self):
         paramsDf = self.dfPositionsAugmented()
         for greek in self.GREEKS:
-            func = getattr(option_pricer, greek.lower())
+            func = getattr(self.pricer, greek.lower())
             paramsDf[greek] = func(*self._pricingParams())
 
         self.logger.debug(f'{self.context.date}: greeks: {paramsDf}')

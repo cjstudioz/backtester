@@ -9,9 +9,12 @@ from backtester.core.context import Context
 from backtester.strategies.straddle1 import StrategyStraddle1
 from backtester.utils.mktdata import createVolSurface, readMktData
 from datetime import datetime
+import os
+from pathlib import Path
 
 if __name__ == '__main__':
-    filename = r'C:\Users\Administrator\PycharmProjects\backtester\data\spx_vols.txt'
+    #filename = r'C:\Users\Administrator\PycharmProjects\backtester\data\spx_vols.txt'
+    filename = os.path.join(Path(__file__).parent, 'data', 'spx_vols.txt')
     rawMktData = readMktData(filename)
     dfMktdata = createVolSurface(rawMktData)
     context = Context(dfMktdata,

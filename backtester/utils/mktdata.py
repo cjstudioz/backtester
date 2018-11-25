@@ -23,6 +23,6 @@ def createVolSurface(df):
     listOfDfs = [pd.DataFrame({'Date': k[0], 'Spot': k[1], 'DaysToMaturity':daysToMaturity, 'Volatility':v}) for k,v in interpDict.items()]
     dfInterpolatedVols = pd.concat(listOfDfs)
     dfInterpolatedVols['Maturity'] = dfInterpolatedVols['Date'] + pd.to_timedelta(dfInterpolatedVols['DaysToMaturity'],                                                                                  unit='d')
-    dfInterpolatedVols['Stock'] = '.SPY'
+    dfInterpolatedVols['Stock'] = '.SPX'
 
     return dfInterpolatedVols

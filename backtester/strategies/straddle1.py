@@ -1,12 +1,10 @@
-from backtester.core.option_pricer import OPTION_TYPE_CALL, OPTION_TYPE_PUT
+from backtester.pricers.option_types import OptionTypes
 from backtester.core.strategy import Strategy
 from backtester.core.context import Context
-import pandas as pd
 
-OPTION_TYPES = (OPTION_TYPE_CALL, OPTION_TYPE_PUT)
 
 class StrategyStraddle1(Strategy):
-    DEFAULT_STOCKS = ('.SPY',)
+    DEFAULT_STOCKS = ('.SPX',)
 
     def __init__(self,
                  context: Context,
@@ -33,10 +31,12 @@ class StrategyStraddle1(Strategy):
             for stock in self.stocks:
                 if refNotional >= tradeNotional:
                     maturity = ctx.date + self.maturityBusinessDaysAhead * ctx.businessday
-                    straddleprice = sum([ctx.optionPrice(stock, ctx.spot(stock), maturity, putcall) for putcall in OPTION_TYPES])
+                    straddleprice = sum([self.optionsPortfolio.optionPrice(
+                        stock, ctx.spot(stock), maturity, putcall.value
+                    ) for putcall in OptionTypes])
                     amount = tradeNotional/straddleprice/2
-                    for putcall in OPTION_TYPES:
-                        self.optionsPortfolio.executeTrade(-amount, stock, ctx.spot(stock), maturity, putcall)
+                    for putcall in OptionTypes:
+                        self.optionsPortfolio.executeTrade(-amount, stock, ctx.spot(stock), maturity, putcall.value)
                 else:
                     #raise RuntimeError(f'{ctx.date}: out of money to trade {tradeNotional}. balance: {ctx.balance}')
                     self.logger.warning(f'{ctx.date}: out of money to trade {tradeNotional}. balance: {ctx.balance}')

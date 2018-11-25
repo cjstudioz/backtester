@@ -2,9 +2,7 @@
 - 25 busday maturity = Friday expiry if no holidays?
 - where to tuesday options come from?
 
-Asusmptions
-- CFD requires no margin and can trade position even when no balance
-- Futures Pnl settled before refNotional Calculated (HACK)
+
 
 
 TODO:

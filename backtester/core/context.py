@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 from datetime import date, timedelta
-from backtester.core import option_pricer
 from backtester.utils.pandas import generateHolidays
 from pandas.tseries.offsets import CustomBusinessDay
 import logging
@@ -12,10 +11,9 @@ class Context:
                  startdate: date=None,
                  enddate: date=None,
                  balance: float=0,
-                 daysInYear: int=360,
                  rate: float=0.01,
                  ):
-        self.mktdata, self.balance, self.daysInYear, self.rate = mktdata, balance, daysInYear, rate
+        self.mktdata, self.balance, self.rate = mktdata, balance, rate
         self.date = startdate or mktdata['Date'].min()
         self.enddate = enddate or mktdata['Date'].max()
         self.logger = logging.getLogger(__name__)
@@ -58,22 +56,6 @@ class Context:
             (md['Maturity'] == pd.Timestamp(maturity))
         ]
         return res.reset_index().at[0, 'Volatility'] #TODO: how to select first element without reset_index?
-
-
-    def optionPrice(self, stock: str, strike: float, maturity: date, putcall: int):
-        """
-
-        Today's option price for a given Stock, Strike, Maturity, PutCall
-        """
-        res = option_pricer.price(
-            self.spot(stock),
-            strike,
-            (maturity - self.date).days / self.daysInYear,
-            self.rate,
-            self.vol(stock, maturity),
-            putcall
-        )
-        return res
 
     def isTradingDay(self):
         #TODO: use calendar instead of looking at mktdata

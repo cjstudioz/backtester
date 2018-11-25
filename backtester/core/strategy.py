@@ -38,7 +38,7 @@ class Strategy:
         optionsNotional = self.optionsPortfolio.notional()
         refNotional = self.refNotional()
         self.logger.info(
-            f'{ctx.date}: eod Balance: {ctx.balance}, Options: {optionsNotional}, Stock: {self.stockPortfolio.notional()}, ref_notional: {refNotional}')
+            f'{ctx.date}: eod Balance: {ctx.balance}, Options: {optionsNotional},  ref_notional: {refNotional}')
         self._notionalHist.append([ctx.date, ctx.balance, optionsNotional, refNotional])
 
     def dfNotionalHist(self):
