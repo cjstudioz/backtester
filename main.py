@@ -7,18 +7,14 @@ logging.getLogger().setLevel(logging.INFO)
 
 from backtester.core.context import Context
 from backtester.strategies.straddle1 import StrategyStraddle1
-from backtester.utils.mktdata import createVolSurface, readMktData
+from backtester.utils.mktdata import getSampleMktData
 from datetime import datetime
-import os
-from pathlib import Path
+
 
 if __name__ == '__main__':
-    #filename = r'C:\Users\Administrator\PycharmProjects\backtester\data\spx_vols.txt'
-    filename = os.path.join(Path(__file__).parent, 'data', 'spx_vols.txt')
-    rawMktData = readMktData(filename)
-    dfMktdata = createVolSurface(rawMktData)
+    dfMktdata = getSampleMktData()
     context = Context(dfMktdata,
-                      balance=10000,
+                      balance=1000,
                       #enddate=datetime(2013, 5, 5)
     )
     

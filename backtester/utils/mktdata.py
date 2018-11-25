@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
-
+import os
+from pathlib import Path
 
 def _groupbyInterpFunc(data):
     return interp1d(data['DaysToMaturity'], data['Volatility'], bounds_error=False, fill_value='extrapolate', kind='cubic')
@@ -26,3 +27,9 @@ def createVolSurface(df):
     dfInterpolatedVols['Stock'] = '.SPX'
 
     return dfInterpolatedVols
+
+def getSampleMktData(filename='spx_vols.txt'):
+    fullPath = os.path.join(Path(__file__).parent.parent.parent, 'data', filename)
+    rawMktData = readMktData(fullPath)
+    dfMktdata = createVolSurface(rawMktData)
+    return dfMktdata
