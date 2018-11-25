@@ -5,6 +5,8 @@ from backtester.pricers import black_scholes_option_pricer as bsp
 from backtester.pricers.option_types import OptionTypes
 from test.web_options_pricer import webOptionsPricerWrapper
 from multiprocessing.pool import ThreadPool
+import logging
+logger = logging.getLogger(__name__)
 
 pd.set_option('display.max_rows', 50)
 pd.set_option('display.max_columns', 20)
@@ -17,7 +19,7 @@ class TestVanillaEuPricer(unittest.TestCase):
     """
     POOL = ThreadPool(8)
 
-    def _generateInputs(self, size=100):
+    def _generateInputs(self, size=10):
         randomArray = np.random.rand(6, size)
         randomArray[0] *= 100 #spot
         randomArray[1] = np.random.lognormal(0, 0.5, size) * randomArray[0]
@@ -28,10 +30,11 @@ class TestVanillaEuPricer(unittest.TestCase):
         return randomArray
 
 
-    def test_sample(self, epsilon = 5e-05):
+    def test_sample(self, epsilon = 1e-04):
         inputs = self._generateInputs()
-        greeks = ['price', 'delta', 'gamma']  # , 'theta']
+        greeks = ['price', 'delta', 'gamma', 'theta']
         bulkRes = {}
+        errorCount = 0
 
         for putcall in OptionTypes:
             inputs[5] = putcall.value
@@ -51,10 +54,6 @@ class TestVanillaEuPricer(unittest.TestCase):
                 self.POOL.map(lambda webinput: webOptionsPricerWrapper(*webinput), webinputs)
             )
 
-        # hack for now:
-        bulkRes['web']['CALL'] = bulkRes['web']['CALL'][greeks]
-        bulkRes['web']['PUT'] = bulkRes['web']['PUT'][greeks]
-
         for restype in ['py', 'numpy']:
             # restype = 'py'
             # deltas sum to 1
@@ -64,6 +63,7 @@ class TestVanillaEuPricer(unittest.TestCase):
 
             for putcall in OptionTypes:
                 # putcall = OptionTypes.PUT
+                bulkRes[restype][putcall.name]['theta'] /= 365 #HACK since web result returns annual theta instead of daily
                 epsilons = bulkRes[restype][putcall.name] - bulkRes['web'][putcall.name]
                 mask = (epsilons.abs() > epsilon).any(axis=1)
 
@@ -74,7 +74,10 @@ class TestVanillaEuPricer(unittest.TestCase):
                         bulkRes[restype][putcall.name][mask],
                         bulkRes['web'][putcall.name][mask],
                     ], axis=1)
-                    self.assertTrue(False, f'unexpected diffs:\n{diffs}')
+                    logger.error(f'unexpected diff for {restype},{putcall}:\n{diffs}')
+                    errorCount += 1
+
+        self.assertFalse(errorCount > 0, f'found {errorCount} errors see log above for detail, or put debug in diffs variable')
 
 if __name__ == '__main__':
     unittest.main()
