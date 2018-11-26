@@ -29,7 +29,7 @@ class TestStrategy(unittest.TestCase):
         )
         strategy.run()
         finalNotional = strategy.refNotional()
-        expectedNotional = 1168.451777
+        expectedNotional = 1193.0724864
         self.assertTrue(math.isclose(finalNotional, expectedNotional), f'expected Notional: {expectedNotional} actual: {finalNotional}')
 
     def test_long_strategy(self):
@@ -40,5 +40,5 @@ class TestStrategy(unittest.TestCase):
         )
         strategy.run()
         finalNotional = strategy.refNotional()
-        expectedNotional = 1757.09797
+        expectedNotional = 1796.654728
         self.assertTrue(math.isclose(finalNotional, expectedNotional), f'expected Notional: {expectedNotional} actual: {finalNotional}')
