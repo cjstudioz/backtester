@@ -14,7 +14,7 @@ from datetime import datetime
 if __name__ == '__main__':
     dfMktdata = getSampleMktData()
     context = Context(dfMktdata,
-                      balance=1000,
+                      balance=100,
                       #enddate=datetime(2013, 5, 5)
     )
     
