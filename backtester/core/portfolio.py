@@ -172,12 +172,12 @@ class OptionsPortfolio(Portfolio):
     def executeTrade(self,
             amount: float,
             stock: str,
-            strike: float,
+            strikeRaw: float,
             maturity: date,
             putcall: int, #OPTION_TYPE_CALL  OPTION_TYPE_PUT
             price: float=None,
     ):
-
+        strike = round(strikeRaw, -1) #Options only available in 10 pt increments
         index = (stock, strike, maturity, putcall)
         self.dfPositions.loc[index, 'Amount'] = \
             self.dfPositions.loc[index, 'Amount'] + amount \
@@ -193,9 +193,6 @@ class OptionsPortfolio(Portfolio):
 
         ctx.balance -= price * amount
 
-        # self.dfTransactions.append([
-        #     [self.context.date, stock, strike, maturity, price, amount]
-        # ])
 
     def dfPositionsAugmented(self):
         # TODO: memoize this
