@@ -7,11 +7,17 @@ from backtester.utils.pandas import checkForNulls
 from datetime import date
 from backtester.core.context import Context
 from functools import partial
-
+from functools import lru_cache
 
 #TRANSACTION_COLS = INDEX
 
 class Portfolio:
+
+    # Define in subclasses
+    INDEX=None
+    POSITION_COLS=None
+    TRADE_COLS=None
+
     """
     Abstract base class (though not strictly) do not instantiate this
     """
@@ -192,8 +198,9 @@ class OptionsPortfolio(Portfolio):
         self._tradeHist.append([ctx.date, stock, strike, maturity, putcallstr, amount, price])
 
         ctx.balance -= price * amount
+        self.clearCache()
 
-
+    @lru_cache()
     def dfPositionsAugmented(self):
         # TODO: memoize this
         ctx = self.context
@@ -215,6 +222,7 @@ class OptionsPortfolio(Portfolio):
         res = augm[self.PRICING_COLS].values.transpose()
         return res
 
+    @lru_cache()
     def positionsGreeks(self):
         paramsDf = self.dfPositionsAugmented()
         for greek in self.GREEKS:
@@ -246,12 +254,16 @@ class OptionsPortfolio(Portfolio):
 
             #delete expired options
             self.dfPositions = self.dfPositions.query(f"Maturity > '{maturityStr}'")
+            self.clearCache()
+
+    def clearCache(self):
+        for func in (self.positionsGreeks, self.dfPositionsAugmented):
+            self.logger.debug(f'Memoized: {func.__name__}: {func.cache_info()}')
+            func.cache_clear()
 
     def handleEventPre(self):
         # HACK to clear cached functions for the day
-        # for func in (self.positionsGreeks, self.dfPositionsAugmented):
-        #     self.logger.debug(f'Memoized: {func.__name__}: {func.cache_info()}')
-        #     func.cache_clear()
+        self.clearCache()
 
         if self.context.isTradingDay():
             self.settleOptions()
